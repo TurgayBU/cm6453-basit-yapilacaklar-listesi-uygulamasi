@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Task List</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .task { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+    .completed { text-decoration: line-through; }
+    input[type="text"] { padding: 5px; margin: 5px; }
+    button { padding: 5px 10px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Task List</h1>
+  <form id="add-task-form">
+    <input type="text" id="task-title" placeholder="Task Title" required>
+    <button type="submit">Add Task</button>
+  </form>
+  <ul id="task-list"></ul>
+
+  <script>
+    const API_BASE = "http://localhost:9000";
+
+    async function api(method, path, body) {
+      const res = await fetch(API_BASE + path, {
+        method,
+        headers: {"Content-Type": "application/json"},
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return res.json();
+    }
+
+    async function fetchTasks() {
+      try {
+        const tasks = await api("GET", "/api/tasks");
+        const taskList = document.getElementById("task-list");
+        taskList.innerHTML = "";
+        tasks.forEach(task => {
+          const li = document.createElement("li");
+          li.className = "task " + (task.completed ? "completed" : "");
+          li.innerHTML = `
+            <span>${task.title}</span>
+            <button onclick="toggleTask(${task.id})">Toggle</button>
+            <button onclick="deleteTask(${task.id})">Delete</button>
+          `;
+          taskList.appendChild(li);
+        });
+      } catch (error) {
+        alert("Error fetching tasks: " + error.message);
+      }
+    }
+
+    document.getElementById("add-task-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("task-title").value;
+      try {
+        await api("POST", "/api/tasks", { title });
+        document.getElementById("task-title").value = "";
+        fetchTasks();
+      } catch (error) {
+        alert("Error adding task: " + error.message);
+      }
+    });
+
+    async function toggleTask(taskId) {
+      try {
+        const task = await api("GET", `/api/tasks/${taskId}`);
+        const updatedTask = { ...task, completed: !task.completed };
+        await api("PUT", `/api/tasks/${taskId}`, updatedTask);
+        fetchTasks();
+      } catch (error) {
+        alert("Error toggling task: " + error.message);
+      }
+    }
+
+    async function deleteTask(taskId) {
+      try {
+        await api("DELETE", `/api/tasks/${taskId}`);
+        fetchTasks();
+      } catch (error) {
+        alert("Error deleting task: " + error.message);
+      }
+    }
+
+    fetchTasks();
+  </script>
+</body>
+</html>
